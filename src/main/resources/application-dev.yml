@@ -1,12 +1,12 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/academic_events_db
-    username: ups
-    password: ups123
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/academic_events_db}
+    username: ${DB_USERNAME:ups}
+    password: ${DB_PASSWORD:ups123}
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   flyway:
     enabled: true 
 
