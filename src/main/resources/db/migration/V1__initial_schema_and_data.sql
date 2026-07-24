@@ -739,7 +739,6 @@ INSERT INTO registrations (
     (44, '00000000-0000-4000-8000-000000000044', 10, 12, 'CONFIRMED', CURRENT_TIMESTAMP - INTERVAL '4 days', CURRENT_TIMESTAMP - INTERVAL '3 days', CURRENT_TIMESTAMP - INTERVAL '3 days', NULL, 0),
     (45, '00000000-0000-4000-8000-000000000045', 10, 15, 'CONFIRMED', CURRENT_TIMESTAMP - INTERVAL '3 days', CURRENT_TIMESTAMP - INTERVAL '2 days', CURRENT_TIMESTAMP - INTERVAL '2 days', NULL, 0);
 
-s
 -- --------------------------------------------------------------------------
 -- Auditoría de ejemplo
 -- --------------------------------------------------------------------------
