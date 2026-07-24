@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+      connection-timeout: 20000
+  data:
+    redis:
+      url: ${REDIS_URL}
+  flyway:
+    enabled: true
+
+logging:
+  level:
+    root: INFO

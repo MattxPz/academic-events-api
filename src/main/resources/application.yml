@@ -1,0 +1,58 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: academic-events-api
+  profiles:
+    default: dev
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+  flyway:
+    baseline-on-migrate: true
+  jackson:
+    time-zone: UTC
+  web:
+    error:
+      include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-expiration: ${JWT_ACCESS_EXPIRATION:900000}
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+    issuer: academic-events-api
+    header: Authorization
+    prefix: "Bearer "
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+  timezone:
+    business: America/Guayaquil
+  ratelimit:
+    login-per-minute: 5
+    register-per-hour: 3
+    public-per-minute: 60
+    authenticated-per-minute: 120
+    reports-per-minute: 5
