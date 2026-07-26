@@ -14,6 +14,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Generated;
+import org.hibernate.generator.EventType;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -40,6 +42,7 @@ public class UserRole {
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
+    @Generated(event = EventType.INSERT)
     @Column(name = "assigned_at", nullable = false, insertable = false, updatable = false)
     private Instant assignedAt;
 
