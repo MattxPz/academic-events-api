@@ -13,6 +13,7 @@ import ec.edu.ups.academicevents.shared.exception.DuplicateResourceException;
 import ec.edu.ups.academicevents.shared.exception.ErrorCode;
 import ec.edu.ups.academicevents.shared.exception.InvalidTokenException;
 import ec.edu.ups.academicevents.shared.exception.ResourceNotFoundException;
+import ec.edu.ups.academicevents.shared.ratelimit.LoginAttemptService;
 import ec.edu.ups.academicevents.shared.security.JwtService;
 import ec.edu.ups.academicevents.shared.security.SecurityUtils;
 import ec.edu.ups.academicevents.users.entity.User;
@@ -53,6 +54,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final SecurityUtils securityUtils;
+    private final LoginAttemptService loginAttemptService;
 
     @Value("${app.jwt.access-expiration}")
     private long accessExpirationMillis;
@@ -101,16 +103,22 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public TokenResponse login(LoginRequest request, String ip) {
-        User user = userRepository.findByEmail(request.email().toLowerCase())
-                .orElseThrow(() -> new BadCredentialsException(GENERIC_CREDENTIALS_MESSAGE));
+        String normalizedEmail = request.email().toLowerCase();
 
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        if (loginAttemptService.isBlocked(normalizedEmail)) {
             throw new BadCredentialsException(GENERIC_CREDENTIALS_MESSAGE);
         }
 
-        if (!STATUS_ACTIVE.equals(user.getStatus())) {
+        User user = userRepository.findByEmail(normalizedEmail).orElse(null);
+
+        if (user == null
+                || !passwordEncoder.matches(request.password(), user.getPasswordHash())
+                || !STATUS_ACTIVE.equals(user.getStatus())) {
+            loginAttemptService.recordFailure(normalizedEmail);
             throw new BadCredentialsException(GENERIC_CREDENTIALS_MESSAGE);
         }
+
+        loginAttemptService.reset(normalizedEmail);
 
         List<String> roles = userRoleRepository.findRoleNamesByUserId(user.getId());
 
