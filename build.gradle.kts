@@ -18,8 +18,7 @@ repositories {
 }
 
 dependencies {
-	implementation(platform("me.paulschwarz:spring-dotenv-bom:5.1.0"))
-	developmentOnly("me.paulschwarz:springboot4-dotenv")
+	developmentOnly("me.paulschwarz:springboot4-dotenv:5.1.0")
 
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
