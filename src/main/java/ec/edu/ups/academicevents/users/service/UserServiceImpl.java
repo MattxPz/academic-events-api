@@ -2,6 +2,8 @@ package ec.edu.ups.academicevents.users.service;
 
 import ec.edu.ups.academicevents.roles.entity.Role;
 import ec.edu.ups.academicevents.roles.repository.RoleRepository;
+import ec.edu.ups.academicevents.shared.audit.AuditPayloads;
+import ec.edu.ups.academicevents.shared.audit.AuditService;
 import ec.edu.ups.academicevents.shared.exception.ErrorCode;
 import ec.edu.ups.academicevents.shared.exception.ResourceNotFoundException;
 import ec.edu.ups.academicevents.users.dto.UserResponse;
@@ -28,10 +30,15 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
+    private static final String AUDIT_RESOURCE_USER = "USER";
+    private static final String AUDIT_USER_STATUS_CHANGED = "USER_STATUS_CHANGED";
+    private static final String AUDIT_USER_ROLES_UPDATED = "USER_ROLES_UPDATED";
+
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
     private final UserMapper userMapper;
+    private final AuditService auditService;
 
     @Override
     @Transactional(readOnly = true)
@@ -65,8 +72,14 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponse updateStatus(Long id, UserStatusRequest request) {
         User user = findUserOrThrow(id);
+        String previousStatus = user.getStatus();
+
         user.setStatus(request.status());
         user = userRepository.save(user);
+
+        auditService.recordSuccess(AUDIT_USER_STATUS_CHANGED, AUDIT_RESOURCE_USER, id,
+                AuditPayloads.status(previousStatus), AuditPayloads.status(user.getStatus()));
+
         return userMapper.toResponse(user, userRoleRepository.findRoleNamesByUserId(id));
     }
 
@@ -74,6 +87,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponse replaceRoles(Long id, UserRolesRequest request) {
         User user = findUserOrThrow(id);
+        List<String> previousRoles = userRoleRepository.findRoleNamesByUserId(id);
 
         Set<Long> requestedRoleIds = new HashSet<>(request.roleIds());
         List<Role> roles = roleRepository.findAllById(requestedRoleIds);
@@ -93,7 +107,12 @@ public class UserServiceImpl implements UserService {
                 .toList();
         userRoleRepository.saveAll(newUserRoles);
 
-        return userMapper.toResponse(user, userRoleRepository.findRoleNamesByUserId(id));
+        List<String> updatedRoles = userRoleRepository.findRoleNamesByUserId(id);
+
+        auditService.recordSuccess(AUDIT_USER_ROLES_UPDATED, AUDIT_RESOURCE_USER, id,
+                AuditPayloads.roles(previousRoles), AuditPayloads.roles(updatedRoles));
+
+        return userMapper.toResponse(user, updatedRoles);
     }
 
     private User findUserOrThrow(Long id) {

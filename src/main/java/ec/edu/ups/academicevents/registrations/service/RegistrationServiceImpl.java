@@ -8,6 +8,8 @@ import ec.edu.ups.academicevents.registrations.dto.RegistrationStatusRequest;
 import ec.edu.ups.academicevents.registrations.entity.Registration;
 import ec.edu.ups.academicevents.registrations.mapper.RegistrationMapper;
 import ec.edu.ups.academicevents.registrations.repository.RegistrationRepository;
+import ec.edu.ups.academicevents.shared.audit.AuditPayloads;
+import ec.edu.ups.academicevents.shared.audit.AuditService;
 import ec.edu.ups.academicevents.shared.exception.BusinessRuleException;
 import ec.edu.ups.academicevents.shared.exception.DuplicateResourceException;
 import ec.edu.ups.academicevents.shared.exception.ErrorCode;
@@ -45,6 +47,11 @@ public class RegistrationServiceImpl implements RegistrationService {
     private static final String STATUS_CANCELLED = "CANCELLED";
     private static final String EVENT_STATUS_PUBLISHED = "PUBLISHED";
 
+    private static final String AUDIT_RESOURCE_REGISTRATION = "REGISTRATION";
+    private static final String AUDIT_REGISTRATION_CREATED = "REGISTRATION_CREATED";
+    private static final String AUDIT_REGISTRATION_STATUS_CHANGED = "REGISTRATION_STATUS_CHANGED";
+    private static final String AUDIT_REGISTRATION_CANCELLED = "REGISTRATION_CANCELLED";
+
     /** Un intento inicial más dos reintentos ante conflictos de bloqueo optimista. */
     private static final int MAX_STATUS_UPDATE_ATTEMPTS = 3;
 
@@ -53,6 +60,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final UserRepository userRepository;
     private final RegistrationMapper registrationMapper;
     private final SecurityUtils securityUtils;
+    private final AuditService auditService;
     private final PlatformTransactionManager transactionManager;
 
     private TransactionTemplate transactionTemplate;
@@ -115,6 +123,9 @@ public class RegistrationServiceImpl implements RegistrationService {
                     "Ya existe una inscripción del participante en este evento.");
         }
 
+        auditService.recordSuccess(AUDIT_REGISTRATION_CREATED, AUDIT_RESOURCE_REGISTRATION, registration.getId(),
+                null, AuditPayloads.status(STATUS_PENDING));
+
         return registrationMapper.toResponse(registration);
     }
 
@@ -129,7 +140,15 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         for (int attempt = 1; attempt <= MAX_STATUS_UPDATE_ATTEMPTS; attempt++) {
             try {
-                return transactionTemplate.execute(status -> applyStatusChange(id, request));
+                RegistrationResponse response = transactionTemplate.execute(status -> applyStatusChange(id, request));
+
+                // La auditoría se emite fuera del bucle para no dejar una traza por cada
+                // intento descartado por bloqueo optimista. El estado previo siempre es
+                // PENDING porque es la única transición permitida.
+                auditService.recordSuccess(AUDIT_REGISTRATION_STATUS_CHANGED, AUDIT_RESOURCE_REGISTRATION, id,
+                        AuditPayloads.status(STATUS_PENDING), AuditPayloads.status(response.status()));
+
+                return response;
             } catch (OptimisticLockingFailureException ex) {
                 lastFailure = ex;
                 log.warn("Conflicto de concurrencia al actualizar la inscripción {} (intento {} de {})",
@@ -156,6 +175,7 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         Event event = registration.getEvent();
         Instant now = Instant.now();
+        String previousStatus = registration.getStatus();
 
         if (!event.getStartAt().isAfter(now)) {
             throw new BusinessRuleException(ErrorCode.BUSINESS_RULE_VIOLATION,
@@ -171,7 +191,13 @@ public class RegistrationServiceImpl implements RegistrationService {
         registration.setCancelledAt(now);
         registration.setStatusUpdatedAt(now);
 
-        return registrationMapper.toResponse(registrationRepository.saveAndFlush(registration));
+        RegistrationResponse response = registrationMapper.toResponse(
+                registrationRepository.saveAndFlush(registration));
+
+        auditService.recordSuccess(AUDIT_REGISTRATION_CANCELLED, AUDIT_RESOURCE_REGISTRATION, id,
+                AuditPayloads.status(previousStatus), AuditPayloads.status(STATUS_CANCELLED));
+
+        return response;
     }
 
     @Override
