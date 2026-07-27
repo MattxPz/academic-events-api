@@ -30,6 +30,8 @@ Copiar `.env.example` como `.env` y completar los valores. Correr la aplicación
 ./gradlew bootRun
 ```
 
+> El proyecto usa [spring-dotenv](https://github.com/paulschwarz/spring-dotenv) para cargar `.env` automáticamente, así que basta con tener el archivo en la raíz del proyecto: no hace falta exportar las variables de entorno manualmente en ningún sistema operativo, ni depender de que el IDE las inyecte.
+
 ## Estructura del proyecto
 Monolito modular por dominio: `auth`, `users`, `categories`, `events`, `sessions`, `registrations`, `reports`, y `shared/` para configuración transversal.
 
