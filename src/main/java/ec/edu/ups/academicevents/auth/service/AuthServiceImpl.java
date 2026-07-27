@@ -9,6 +9,8 @@ import ec.edu.ups.academicevents.auth.entity.RefreshToken;
 import ec.edu.ups.academicevents.auth.repository.RefreshTokenRepository;
 import ec.edu.ups.academicevents.roles.entity.Role;
 import ec.edu.ups.academicevents.roles.repository.RoleRepository;
+import ec.edu.ups.academicevents.shared.audit.AuditPayloads;
+import ec.edu.ups.academicevents.shared.audit.AuditService;
 import ec.edu.ups.academicevents.shared.exception.DuplicateResourceException;
 import ec.edu.ups.academicevents.shared.exception.ErrorCode;
 import ec.edu.ups.academicevents.shared.exception.InvalidTokenException;
@@ -46,6 +48,10 @@ public class AuthServiceImpl implements AuthService {
     private static final String REFRESH_TOKEN_TYPE = "refresh";
     private static final String CLAIM_TYPE = "type";
     private static final String GENERIC_CREDENTIALS_MESSAGE = "Credenciales inválidas";
+    private static final String AUDIT_RESOURCE_USER = "USER";
+    private static final String AUDIT_USER_REGISTERED = "USER_REGISTERED";
+    private static final String AUDIT_LOGIN_SUCCESS = "LOGIN_SUCCESS";
+    private static final String AUDIT_LOGIN_FAILED = "LOGIN_FAILED";
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -55,6 +61,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final SecurityUtils securityUtils;
     private final LoginAttemptService loginAttemptService;
+    private final AuditService auditService;
 
     @Value("${app.jwt.access-expiration}")
     private long accessExpirationMillis;
@@ -91,6 +98,11 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         userRoleRepository.save(userRole);
 
+        // El actor queda nulo: el registro es anónimo y el usuario recién creado todavía no
+        // está confirmado en la base de datos, por lo que la FK de actor_id aún no lo aceptaría.
+        auditService.recordSuccess(AUDIT_USER_REGISTERED, AUDIT_RESOURCE_USER, user.getId(),
+                null, AuditPayloads.email(user.getEmail()));
+
         return new AuthUserResponse(
                 user.getId(),
                 user.getFirstName(),
@@ -106,6 +118,7 @@ public class AuthServiceImpl implements AuthService {
         String normalizedEmail = request.email().toLowerCase();
 
         if (loginAttemptService.isBlocked(normalizedEmail)) {
+            auditLoginFailed(normalizedEmail);
             throw new BadCredentialsException(GENERIC_CREDENTIALS_MESSAGE);
         }
 
@@ -115,6 +128,7 @@ public class AuthServiceImpl implements AuthService {
                 || !passwordEncoder.matches(request.password(), user.getPasswordHash())
                 || !STATUS_ACTIVE.equals(user.getStatus())) {
             loginAttemptService.recordFailure(normalizedEmail);
+            auditLoginFailed(normalizedEmail);
             throw new BadCredentialsException(GENERIC_CREDENTIALS_MESSAGE);
         }
 
@@ -122,7 +136,18 @@ public class AuthServiceImpl implements AuthService {
 
         List<String> roles = userRoleRepository.findRoleNamesByUserId(user.getId());
 
-        return issueTokenPair(user, roles, ip);
+        TokenResponse tokens = issueTokenPair(user, roles, ip);
+
+        auditService.recordSuccessAs(user.getId(), AUDIT_LOGIN_SUCCESS, AUDIT_RESOURCE_USER, user.getId(),
+                null, AuditPayloads.email(normalizedEmail));
+
+        return tokens;
+    }
+
+    /** Solo se registra el correo intentado: la contraseña nunca debe llegar a la auditoría. */
+    private void auditLoginFailed(String email) {
+        auditService.recordFailure(AUDIT_LOGIN_FAILED, AUDIT_RESOURCE_USER, null,
+                null, AuditPayloads.email(email));
     }
 
     @Override

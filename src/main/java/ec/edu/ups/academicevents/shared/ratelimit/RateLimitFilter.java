@@ -27,6 +27,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
 
 @Component
 @RequiredArgsConstructor
@@ -35,6 +36,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final String LOGIN_PATH = "/api/auth/login";
     private static final String REGISTER_PATH = "/api/auth/register";
     private static final String REPORTS_PATH_PREFIX = "/api/reports/";
+    /** El certificado vive bajo /api/registrations pero es un reporte y usa su misma política. */
+    private static final Pattern CERTIFICATE_PATH = Pattern.compile("^/api/registrations/[^/]+/certificate\\.pdf$");
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String FORWARDED_FOR_HEADER = "X-Forwarded-For";
@@ -64,7 +67,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (path.startsWith(REPORTS_PATH_PREFIX)) {
+        if (isReportPath(path)) {
             Long userId = resolveUserId(request);
             RateLimitResult result = userId != null
                     ? rateLimiter.tryConsume(RateLimitPolicy.REPORTS_USER, String.valueOf(userId))
@@ -78,6 +81,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 ? rateLimiter.tryConsume(RateLimitPolicy.AUTHENTICATED_USER, String.valueOf(userId))
                 : rateLimiter.tryConsume(RateLimitPolicy.PUBLIC_IP, ip);
         proceedOrReject(request, response, filterChain, result);
+    }
+
+    private boolean isReportPath(String path) {
+        return path.startsWith(REPORTS_PATH_PREFIX) || CERTIFICATE_PATH.matcher(path).matches();
     }
 
     private void handleLogin(
