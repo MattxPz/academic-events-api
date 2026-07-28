@@ -122,14 +122,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ApiErrorResponse> handleBusinessRule(
             BusinessRuleException ex, HttpServletRequest request) {
+        HttpStatus status = ex.getCode() == ErrorCode.EVENT_HAS_REGISTRATIONS
+                ? HttpStatus.CONFLICT
+                : HttpStatus.UNPROCESSABLE_CONTENT;
+
         ApiErrorResponse body = ApiErrorResponse.of(
-                HttpStatus.UNPROCESSABLE_CONTENT.value(),
-                HttpStatus.UNPROCESSABLE_CONTENT.getReasonPhrase(),
+                status.value(),
+                status.getReasonPhrase(),
                 ex.getCode(),
                 ex.getMessage(),
                 request.getRequestURI());
 
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(body);
+        return ResponseEntity.status(status).body(body);
     }
 
     @ExceptionHandler(NoCapacityException.class)

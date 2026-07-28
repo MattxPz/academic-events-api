@@ -58,6 +58,24 @@ public class EventController {
         return eventService.findAll(q, categoryId, modality, status, from, to, pageable);
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    @Operation(summary = "Listar mis eventos",
+            description = "Devuelve los eventos del organizador autenticado, paginados, incluidos los que "
+                    + "están en estado DRAFT.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Página de eventos del organizador autenticado"),
+            @ApiResponse(responseCode = "401", description = "No autenticado",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "El usuario autenticado no tiene rol ORGANIZER",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
+    public Page<EventResponse> findMine(Pageable pageable) {
+        return eventService.findMine(pageable);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Obtener un evento por id")
     @ApiResponses({
@@ -159,7 +177,8 @@ public class EventController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAnyRole('ADMIN','ORGANIZER')")
     @Operation(summary = "Eliminar un evento",
-            description = "Elimina lógicamente el evento marcándolo como eliminado. La operación es idempotente.")
+            description = "Elimina lógicamente el evento marcándolo como eliminado. La operación es idempotente. "
+                    + "No se permite si el evento está PUBLISHED y tiene inscripciones confirmadas.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Evento eliminado correctamente"),
             @ApiResponse(responseCode = "401", description = "No autenticado",
@@ -170,6 +189,10 @@ public class EventController {
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "El evento no existe",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "El evento está publicado y tiene inscripciones "
+                    + "confirmadas",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ApiErrorResponse.class)))
     })

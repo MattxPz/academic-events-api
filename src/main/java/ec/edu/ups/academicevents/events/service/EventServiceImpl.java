@@ -8,6 +8,7 @@ import ec.edu.ups.academicevents.events.dto.EventStatusRequest;
 import ec.edu.ups.academicevents.events.entity.Event;
 import ec.edu.ups.academicevents.events.mapper.EventMapper;
 import ec.edu.ups.academicevents.events.repository.EventRepository;
+import ec.edu.ups.academicevents.registrations.repository.RegistrationRepository;
 import ec.edu.ups.academicevents.shared.exception.BusinessRuleException;
 import ec.edu.ups.academicevents.shared.exception.ErrorCode;
 import ec.edu.ups.academicevents.shared.exception.ResourceNotFoundException;
@@ -34,6 +35,7 @@ public class EventServiceImpl implements EventService {
 
     private final EventRepository eventRepository;
     private final CategoryRepository categoryRepository;
+    private final RegistrationRepository registrationRepository;
     private final EventMapper eventMapper;
     private final SecurityUtils securityUtils;
 
@@ -96,6 +98,19 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Page<EventResponse> findMine(Pageable pageable) {
+        Long organizerId = securityUtils.currentUserId();
+
+        Specification<Event> specification = (root, query, cb) -> cb.conjunction();
+        specification = specification.and((root, query, cb) -> cb.isFalse(root.get("deleted")));
+        specification = specification.and(
+                (root, query, cb) -> cb.equal(root.get("organizerId"), organizerId));
+
+        return eventRepository.findAll(specification, pageable).map(eventMapper::toResponse);
+    }
+
+    @Override
     @Transactional
     public EventResponse update(Long id, EventRequest request) {
         Event event = findActiveEventOrThrow(id);
@@ -133,6 +148,12 @@ public class EventServiceImpl implements EventService {
     public void delete(Long id) {
         Event event = findEventOrThrow(id);
         requireEventOwner(event);
+
+        if ("PUBLISHED".equals(event.getStatus())
+                && registrationRepository.countByEventIdAndStatus(id, "CONFIRMED") > 0) {
+            throw new BusinessRuleException(ErrorCode.EVENT_HAS_REGISTRATIONS,
+                    "No se puede eliminar un evento publicado que tiene inscripciones confirmadas.");
+        }
 
         if (!Boolean.TRUE.equals(event.getDeleted())) {
             event.setDeleted(true);

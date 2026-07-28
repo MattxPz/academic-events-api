@@ -170,6 +170,27 @@ public class RegistrationController {
         return registrationService.updateStatus(id, request);
     }
 
+    @GetMapping("/event/{eventId}")
+    @Operation(summary = "Listar las inscripciones de un evento",
+            description = "Devuelve de forma paginada las inscripciones del evento indicado, con filtro "
+                    + "opcional por estado. Solo el organizador dueño del evento o un administrador.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Página de inscripciones del evento"),
+            @ApiResponse(responseCode = "401", description = "No autenticado",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "El usuario autenticado no es el organizador "
+                    + "dueño del evento ni un administrador",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ApiErrorResponse.class)))
+    })
+    public Page<RegistrationResponse> findByEvent(
+            @PathVariable Long eventId,
+            @RequestParam(required = false) String status,
+            Pageable pageable) {
+        return registrationService.findByEvent(eventId, status, pageable);
+    }
+
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Listar todas las inscripciones",
