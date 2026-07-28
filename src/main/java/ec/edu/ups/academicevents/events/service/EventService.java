@@ -17,6 +17,8 @@ public interface EventService {
     Page<EventResponse> findAll(
             String q, Long categoryId, String modality, String status, Instant from, Instant to, Pageable pageable);
 
+    Page<EventResponse> findMine(Pageable pageable);
+
     EventResponse update(Long id, EventRequest request);
 
     EventResponse changeStatus(Long id, EventStatusRequest request);
