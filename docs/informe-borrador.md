@@ -5,10 +5,10 @@
 - **Proyecto**: Academic Events API — API REST para la gestión de eventos académicos
 - **Asignatura**: Programación y Plataformas Web — Proyecto Integrador
 - **Integrantes**:
-  - [Nombre A]
-  - [Nombre B]
-- **Fecha**: [COMPLETAR]
-- **Repositorio**: [COMPLETAR CON URL DEL REPOSITORIO]
+  - Mateo Paez
+  - John Tigre
+- **Fecha**: 29/07/2026
+- **Repositorio**: https://github.com/MattxPz/academic-events-api
 
 ---
 
