@@ -17,6 +17,260 @@
   ],
   "item": [
     {
+      "name": "00-Cuentas de prueba",
+      "description": "Login rápido con cada usuario semilla, para fijar la identidad ({{accessToken}} / {{refreshToken}}) que usarán automáticamente el resto de carpetas de la colección (Events, Categories, etc.), sin tener que tocar ningún otro request.\n\n| Correo | Rol(es) | Eventos propios |\n|---|---|---|\n| admin@academic.test | ADMIN | — (acceso total) |\n| maria.cordero@academic.test | ORGANIZER, PARTICIPANT | 1, 4, 7, 8 |\n| jose.mora@academic.test | ORGANIZER, PARTICIPANT | 2, 5, 9 |\n| ana.torres@academic.test | ORGANIZER, PARTICIPANT | 3, 6, 10 |\n| carlos.velez@academic.test | PARTICIPANT | — |\n| andres.sarmiento@academic.test | PARTICIPANT (BLOCKED) | — |\n\nContraseña para todas: Password123*\n\nNotas de estado de eventos semilla:\n- Evento 1: PUBLISHED, con inscripciones CONFIRMED (para demostrar 409 al intentar eliminarlo)\n- Evento 4: DRAFT (para demostrar /api/events/me y transición de estado)\n- Evento 6: FINISHED (para demostrar 422 al intentar inscribirse)\n- Evento 7: CANCELLED",
+      "item": [
+        {
+          "name": "Login - Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@academic.test\",\n  \"password\": \"Password123*\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Usuario semilla ADMIN, acceso total."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login exitoso (200)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.test(\"La respuesta trae accessToken y refreshToken\", function () {",
+                  "        pm.expect(jsonData.accessToken).to.be.a(\"string\");",
+                  "        pm.expect(jsonData.refreshToken).to.be.a(\"string\");",
+                  "    });",
+                  "    pm.collectionVariables.set(\"accessToken\", jsonData.accessToken);",
+                  "    pm.collectionVariables.set(\"refreshToken\", jsonData.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Organizador A (maria.cordero, dueña eventos 1,4,7,8)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"maria.cordero@academic.test\",\n  \"password\": \"Password123*\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "ORGANIZER + PARTICIPANT. Dueña de los eventos semilla 1, 4, 7 y 8."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login exitoso (200)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.test(\"La respuesta trae accessToken y refreshToken\", function () {",
+                  "        pm.expect(jsonData.accessToken).to.be.a(\"string\");",
+                  "        pm.expect(jsonData.refreshToken).to.be.a(\"string\");",
+                  "    });",
+                  "    pm.collectionVariables.set(\"accessToken\", jsonData.accessToken);",
+                  "    pm.collectionVariables.set(\"refreshToken\", jsonData.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Organizador B (jose.mora, dueño eventos 2,5,9)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jose.mora@academic.test\",\n  \"password\": \"Password123*\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "ORGANIZER + PARTICIPANT. Dueño de los eventos semilla 2, 5 y 9."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login exitoso (200)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.test(\"La respuesta trae accessToken y refreshToken\", function () {",
+                  "        pm.expect(jsonData.accessToken).to.be.a(\"string\");",
+                  "        pm.expect(jsonData.refreshToken).to.be.a(\"string\");",
+                  "    });",
+                  "    pm.collectionVariables.set(\"accessToken\", jsonData.accessToken);",
+                  "    pm.collectionVariables.set(\"refreshToken\", jsonData.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Organizador C (ana.torres, dueña eventos 3,6,10)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ana.torres@academic.test\",\n  \"password\": \"Password123*\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "ORGANIZER + PARTICIPANT. Dueña de los eventos semilla 3, 6 y 10."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login exitoso (200)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.test(\"La respuesta trae accessToken y refreshToken\", function () {",
+                  "        pm.expect(jsonData.accessToken).to.be.a(\"string\");",
+                  "        pm.expect(jsonData.refreshToken).to.be.a(\"string\");",
+                  "    });",
+                  "    pm.collectionVariables.set(\"accessToken\", jsonData.accessToken);",
+                  "    pm.collectionVariables.set(\"refreshToken\", jsonData.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Participante (carlos.velez)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"carlos.velez@academic.test\",\n  \"password\": \"Password123*\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Solo rol PARTICIPANT, sin eventos propios."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login exitoso (200)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.test(\"La respuesta trae accessToken y refreshToken\", function () {",
+                  "        pm.expect(jsonData.accessToken).to.be.a(\"string\");",
+                  "        pm.expect(jsonData.refreshToken).to.be.a(\"string\");",
+                  "    });",
+                  "    pm.collectionVariables.set(\"accessToken\", jsonData.accessToken);",
+                  "    pm.collectionVariables.set(\"refreshToken\", jsonData.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Usuario bloqueado (andres.sarmiento)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"andres.sarmiento@academic.test\",\n  \"password\": \"Password123*\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Debe devolver 401 con mensaje genérico, esta cuenta está BLOCKED. Sirve para demostrar el flujo de cuenta bloqueada."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cuenta bloqueada: status 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "00-Auth",
       "item": [
         {
