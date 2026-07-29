@@ -64,6 +64,7 @@ public class EventServiceImpl implements EventService {
         Specification<Event> specification = (root, query, cb) -> cb.conjunction();
 
         specification = specification.and((root, query, cb) -> cb.isFalse(root.get("deleted")));
+        specification = specification.and(visibilitySpecification());
 
         if (q != null && !q.isBlank()) {
             String likePattern = "%" + q.trim().toLowerCase() + "%";
@@ -159,6 +160,26 @@ public class EventServiceImpl implements EventService {
             event.setDeleted(true);
             eventRepository.save(event);
         }
+    }
+
+    /**
+     * Un ADMIN ve todos los estados. Un organizador autenticado ve sus propios eventos en
+     * cualquier estado, más los PUBLISHED de los demás. Un anónimo (o cualquier otro caso sin
+     * usuario resuelto) solo ve PUBLISHED, sin importar el status pedido en los parámetros.
+     */
+    private Specification<Event> visibilitySpecification() {
+        if (securityUtils.isAdmin()) {
+            return (root, query, cb) -> cb.conjunction();
+        }
+
+        Long currentUserId = securityUtils.currentUserId();
+        if (currentUserId != null) {
+            return (root, query, cb) -> cb.or(
+                    cb.equal(root.get("status"), "PUBLISHED"),
+                    cb.equal(root.get("organizerId"), currentUserId));
+        }
+
+        return (root, query, cb) -> cb.equal(root.get("status"), "PUBLISHED");
     }
 
     private Event findEventOrThrow(Long id) {
