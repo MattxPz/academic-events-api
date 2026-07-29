@@ -1,0 +1,233 @@
+// Academic Events API — Modelo entidad-relación
+// Generado a partir de src/main/resources/db/migration/V1__initial_schema_and_data.sql
+// Formato DBML (https://dbml.dbdiagram.io) — visualizar en https://dbdiagram.io
+
+Project academic_events_db {
+  database_type: 'PostgreSQL'
+  Note: 'API REST para gestión de eventos académicos. Esquema completo creado por la única migración Flyway V1__initial_schema_and_data.sql.'
+}
+
+// ----------------------------------------------------------------------------
+// 1. ROLES
+// ----------------------------------------------------------------------------
+Table roles {
+  id bigint [pk, increment, note: 'Identificador único del rol.']
+  name varchar(30) [not null, unique, note: 'Nombre técnico del rol. CHECK: IN (ADMIN, ORGANIZER, PARTICIPANT).']
+  description varchar(150) [not null, note: 'Descripción funcional del rol.']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha de creación del registro.']
+
+  Note: 'Catálogo de roles utilizados para autorización dentro de la API.'
+}
+
+// ----------------------------------------------------------------------------
+// 2. USERS
+// ----------------------------------------------------------------------------
+Table users {
+  id bigint [pk, increment, note: 'Identificador único del usuario.']
+  first_name varchar(80) [not null, note: 'Nombres del usuario.']
+  last_name varchar(80) [not null, note: 'Apellidos del usuario.']
+  email varchar(160) [not null, unique, note: 'Correo normalizado en minúsculas, usado como credencial. CHECK: email = LOWER(email).']
+  password_hash varchar(255) [not null, note: 'Contraseña protegida mediante BCrypt.']
+  status varchar(20) [not null, default: 'ACTIVE', note: 'Estado administrativo. CHECK: IN (ACTIVE, BLOCKED).']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha de creación del usuario.']
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha de última modificación (trigger set_updated_at).']
+
+  Note: 'Usuarios del sistema. El bloqueo administrativo permanente se guarda en status; los bloqueos temporales de login se gestionan en Redis.'
+}
+
+// ----------------------------------------------------------------------------
+// 3. USER_ROLES (tabla intermedia N:M entre users y roles)
+// ----------------------------------------------------------------------------
+Table user_roles {
+  user_id bigint [not null, note: 'Usuario al que se asigna el rol.']
+  role_id bigint [not null, note: 'Rol asignado al usuario.']
+  assigned_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha en que se realizó la asignación.']
+
+  Indexes {
+    (user_id, role_id) [pk]
+  }
+
+  Note: 'Tabla intermedia que asigna uno o varios roles a cada usuario. FK user_id ON DELETE CASCADE, FK role_id ON DELETE RESTRICT.'
+}
+
+// ----------------------------------------------------------------------------
+// 4. CATEGORIES
+// ----------------------------------------------------------------------------
+Table categories {
+  id bigint [pk, increment, note: 'Identificador único de la categoría.']
+  name varchar(80) [not null, note: 'Nombre de la categoría. Único sin distinguir mayúsculas (uq_categories_name_lower).']
+  description varchar(255) [note: 'Descripción de la categoría.']
+  active boolean [not null, default: true, note: 'Indica si la categoría puede usarse en nuevos eventos (borrado lógico).']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha de creación.']
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha de última modificación (trigger set_updated_at).']
+
+  Note: 'Categorías utilizadas para clasificar eventos. La eliminación es lógica mediante active=false.'
+}
+
+// ----------------------------------------------------------------------------
+// 5. EVENTS
+// ----------------------------------------------------------------------------
+Table events {
+  id bigint [pk, increment, note: 'Identificador único del evento.']
+  title varchar(160) [not null, note: 'Título público del evento.']
+  description text [not null, note: 'Descripción detallada del evento.']
+  modality varchar(20) [not null, note: 'CHECK: IN (PRESENTIAL, VIRTUAL, HYBRID).']
+  location varchar(200) [note: 'Lugar físico; requerido si modality es PRESENTIAL o HYBRID.']
+  virtual_url varchar(500) [note: 'Enlace de acceso; requerido si modality es VIRTUAL o HYBRID.']
+  capacity integer [not null, note: 'Cupo total del evento. CHECK: capacity > 0.']
+  available_capacity integer [not null, note: 'Cupos disponibles. CHECK: BETWEEN 0 AND capacity. Solo CONFIRMED consume cupo.']
+  registration_start_at timestamptz [not null, note: 'Inicio del periodo de inscripciones.']
+  registration_end_at timestamptz [not null, note: 'Fin del periodo de inscripciones.']
+  start_at timestamptz [not null, note: 'Fecha y hora de inicio del evento.']
+  end_at timestamptz [not null, note: 'Fecha y hora de finalización del evento.']
+  status varchar(20) [not null, default: 'DRAFT', note: 'CHECK: IN (DRAFT, PUBLISHED, FINISHED, CANCELLED).']
+  organizer_id bigint [not null, note: 'FK -> users.id (ON DELETE RESTRICT). Organizador propietario del evento.']
+  category_id bigint [not null, note: 'FK -> categories.id (ON DELETE RESTRICT).']
+  deleted boolean [not null, default: false, note: 'Marca de eliminación lógica.']
+  version bigint [not null, default: 0, note: 'Control de concurrencia optimista (JPA @Version).']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha de creación.']
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha de última modificación (trigger set_updated_at).']
+
+  Indexes {
+    status
+    category_id
+    organizer_id
+    start_at
+    deleted
+  }
+
+  Note: '''Eventos académicos administrados por organizadores.
+  CHECK adicional chk_events_date_order: registration_start_at < registration_end_at <= start_at < end_at.
+  CHECK adicional chk_events_modality_data: coherencia entre modality, location y virtual_url.'''
+}
+
+// ----------------------------------------------------------------------------
+// 6. SESSIONS
+// ----------------------------------------------------------------------------
+Table sessions {
+  id bigint [pk, increment, note: 'Identificador único de la sesión.']
+  event_id bigint [not null, note: 'FK -> events.id (ON DELETE RESTRICT). Evento al que pertenece la sesión.']
+  title varchar(160) [not null, note: 'Título de la sesión.']
+  description text [note: 'Descripción de la sesión.']
+  start_at timestamptz [not null, note: 'Fecha y hora de inicio de la sesión.']
+  end_at timestamptz [not null, note: 'Fecha y hora de finalización de la sesión. CHECK: start_at < end_at.']
+  location varchar(200) [note: 'Lugar físico de la sesión, cuando corresponda.']
+  virtual_url varchar(500) [note: 'Enlace virtual de la sesión, cuando corresponda.']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha de creación.']
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha de última modificación (trigger set_updated_at).']
+
+  Indexes {
+    event_id
+    start_at
+    (event_id, title, start_at) [unique, name: 'uq_sessions_event_title_start']
+  }
+
+  Note: 'Sesiones, charlas o bloques horarios pertenecientes a un evento.'
+}
+
+// ----------------------------------------------------------------------------
+// 7. REGISTRATIONS
+// ----------------------------------------------------------------------------
+Table registrations {
+  id bigint [pk, increment, note: 'Identificador interno de la inscripción.']
+  registration_code uuid [not null, unique, note: 'Código UUID público utilizado en comprobantes.']
+  event_id bigint [not null, note: 'FK -> events.id (ON DELETE RESTRICT). Evento solicitado por el participante.']
+  participant_id bigint [not null, note: 'FK -> users.id (ON DELETE RESTRICT). Participante propietario de la inscripción.']
+  status varchar(20) [not null, default: 'PENDING', note: 'CHECK: IN (PENDING, CONFIRMED, REJECTED, CANCELLED).']
+  registered_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha de creación de la solicitud.']
+  status_updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha del último cambio de estado.']
+  confirmed_at timestamptz [note: 'Fecha de confirmación. CHECK: obligatorio si status = CONFIRMED.']
+  cancelled_at timestamptz [note: 'Fecha de cancelación. CHECK: obligatorio si status = CANCELLED.']
+  version bigint [not null, default: 0, note: 'Control de concurrencia optimista (JPA @Version).']
+
+  Indexes {
+    event_id
+    participant_id
+    status
+    (event_id, status)
+    (event_id, participant_id) [unique, name: 'uq_registrations_event_participant']
+  }
+
+  Note: 'Inscripciones de participantes en eventos. Solo puede existir una inscripción por participante y evento (uq_registrations_event_participant).'
+}
+
+// ----------------------------------------------------------------------------
+// 8. REFRESH_TOKENS
+// ----------------------------------------------------------------------------
+Table refresh_tokens {
+  id bigint [pk, increment, note: 'Identificador interno del refresh token.']
+  token_id uuid [not null, unique, note: 'Identificador UUID incluido como jti del token.']
+  user_id bigint [not null, note: 'FK -> users.id (ON DELETE CASCADE). Usuario propietario del token.']
+  token_hash varchar(255) [not null, unique, note: 'Hash del refresh token; el token original nunca se almacena.']
+  expires_at timestamptz [not null, note: 'Fecha de expiración. CHECK: expires_at > created_at.']
+  revoked_at timestamptz [note: 'Fecha de revocación; nulo mientras el token está vigente.']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha de emisión.']
+  created_by_ip varchar(45) [note: 'IP desde la que se emitió el token.']
+  replaced_by_token_id uuid [note: 'Identificador del nuevo token emitido durante una rotación.']
+
+  Indexes {
+    user_id
+    expires_at
+  }
+
+  Note: 'Refresh tokens persistidos mediante hash, para permitir renovación, rotación, cierre de sesión y revocación del lado del servidor. Se usa PostgreSQL (no Redis) para esta revocación.'
+}
+
+// ----------------------------------------------------------------------------
+// 9. AUDIT_LOGS
+// ----------------------------------------------------------------------------
+Table audit_logs {
+  id bigint [pk, increment, note: 'Identificador del registro de auditoría.']
+  actor_id bigint [note: 'FK -> users.id (ON DELETE SET NULL). Usuario autenticado que ejecutó la operación; puede ser nulo.']
+  action varchar(60) [not null, note: 'Acción técnica realizada (p. ej. CATEGORY_CREATED, USER_STATUS_CHANGED).']
+  resource_type varchar(50) [not null, note: 'Tipo de recurso afectado.']
+  resource_id bigint [note: 'Identificador del recurso afectado.']
+  previous_value jsonb [note: 'Estado anterior serializado como JSON. Nunca contiene contraseñas ni tokens.']
+  new_value jsonb [note: 'Estado nuevo serializado como JSON. Nunca contiene contraseñas ni tokens.']
+  result varchar(20) [not null, note: 'CHECK: IN (SUCCESS, FAILED).']
+  ip_address varchar(45) [note: 'Dirección IPv4 o IPv6 de origen.']
+  http_method varchar(10) [note: 'Método HTTP utilizado.']
+  endpoint varchar(255) [note: 'Ruta solicitada.']
+  correlation_id varchar(36) [note: 'Identificador para relacionar auditoría y logs técnicos.']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`, note: 'Fecha de la operación.']
+
+  Indexes {
+    actor_id
+    action
+    (resource_type, resource_id)
+    created_at
+  }
+
+  Note: 'Auditoría de operaciones críticas. No debe almacenar contraseñas, access tokens ni refresh tokens.'
+}
+
+// ----------------------------------------------------------------------------
+// Relaciones (cardinalidad, según las FK reales del esquema)
+// ----------------------------------------------------------------------------
+
+// roles 1 --- * user_roles  (FK role_id, ON DELETE RESTRICT)
+Ref: user_roles.role_id > roles.id
+
+// users 1 --- * user_roles  (FK user_id, ON DELETE CASCADE)
+Ref: user_roles.user_id > users.id
+
+// users 1 --- * events  (FK organizer_id, ON DELETE RESTRICT)
+Ref: events.organizer_id > users.id
+
+// categories 1 --- * events  (FK category_id, ON DELETE RESTRICT)
+Ref: events.category_id > categories.id
+
+// events 1 --- * sessions  (FK event_id, ON DELETE RESTRICT)
+Ref: sessions.event_id > events.id
+
+// events 1 --- * registrations  (FK event_id, ON DELETE RESTRICT)
+Ref: registrations.event_id > events.id
+
+// users 1 --- * registrations  (FK participant_id, ON DELETE RESTRICT)
+Ref: registrations.participant_id > users.id
+
+// users 1 --- * refresh_tokens  (FK user_id, ON DELETE CASCADE)
+Ref: refresh_tokens.user_id > users.id
+
+// users 1 --- * audit_logs  (FK actor_id, ON DELETE SET NULL, nullable)
+Ref: audit_logs.actor_id > users.id
