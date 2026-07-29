@@ -5,8 +5,8 @@ reportes y administración de usuarios/roles, con autenticación JWT, rate limit
 y auditoría de operaciones críticas. Proyecto Integrador — Programación y Plataformas Web.
 
 **Enlaces en vivo**
-- API desplegada: [URL_RENDER]
-- Documentación Swagger / OpenAPI: [URL_SWAGGER]
+- API desplegada: [https://academic-events-api.onrender.com/actuator/health]
+- Documentación Swagger / OpenAPI: [https://academic-events-api.onrender.com/swagger-ui/index.html]
 
 ---
 
@@ -135,9 +135,7 @@ El esquema se crea íntegramente desde la migración Flyway `V1__initial_schema_
 | 9 | `audit_logs` | Auditoría de operaciones críticas (actor, acción, valores antes/después). |
 
 El diagrama entidad-relación versionado del proyecto vive en **`docs/erd.dbml`**
-(formato [dbdiagram.io](https://dbdiagram.io)). *Nota: al momento de generar este README ese
-archivo no existe todavía en el repositorio — crearlo/actualizarlo junto con cualquier cambio
-de esquema.*
+(formato [dbdiagram.io](https://dbdiagram.io)).
 
 ---
 
@@ -189,12 +187,12 @@ Tabla completa según `.env.example` y `render.yaml`:
 | `REDIS_HOST` | Render (placeholder) / perfil `dev` | Host de Redis, alternativa a `REDIS_URL` | `localhost` (default en `application-dev.yml`) |
 | `REDIS_PORT` | Render (placeholder) / perfil `dev` | Puerto de Redis, alternativa a `REDIS_URL` | `6379` (default en `application-dev.yml`) |
 | `REDIS_PASSWORD` | Render (placeholder) | Contraseña de Redis si el proveedor la exige | — |
-| `JWT_SECRET` | local + Render | Secreto Base64 (≥32 bytes) para firmar los JWT con HS256 | *(placeholder, generar uno propio)* |
+| `JWT_SECRET` | local + Render | Secreto Base64 (≥32 bytes) para firmar los JWT con HS256 | *your_base64_secret_here* |
 | `JWT_ACCESS_EXPIRATION` | local + Render | Expiración del access token, en milisegundos | `900000` (15 min) |
 | `JWT_REFRESH_EXPIRATION` | local + Render | Expiración del refresh token, en milisegundos | `604800000` (7 días) |
 | `ALLOWED_ORIGINS` | local + Render | Orígenes permitidos por CORS, separados por coma | `http://localhost:5173` |
 | `SWAGGER_USER` | local + Render (perfil `prod`) | Usuario Basic Auth para proteger Swagger en producción | `admin` |
-| `SWAGGER_PASSWORD` | local + Render (perfil `prod`) | Contraseña Basic Auth para Swagger en producción | *(placeholder, cambiar)* |
+| `SWAGGER_PASSWORD` | local + Render (perfil `prod`) | Contraseña Basic Auth para Swagger en producción | *secure_password_here* |
 | `PORT` | local + Render | Puerto en el que escucha la aplicación | `8080` |
 
 > **Nota sobre Redis**: el proyecto soporta **dos formas válidas** de configurar la conexión,
