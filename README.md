@@ -450,7 +450,7 @@ Datos semilla insertados por la migración Flyway `V1__initial_schema_and_data.s
 | `andres.sarmiento@academic.test` | Andrés Felipe Sarmiento Paz | PARTICIPANT | **BLOCKED** (para probar el flujo de cuenta bloqueada) |
 
 Para probar en Swagger:
-1. Ir a [URL_SWAGGER].
+1. 1. Ir a https://academic-events-api.onrender.com/swagger-ui/index.html
 2. `POST /api/auth/login` con uno de los correos anteriores y contraseña `Password123*`.
 3. Copiar el `accessToken` de la respuesta y usar el botón **Authorize** (esquema
    `bearerAuth`, `Bearer <token>`) para autenticar el resto de las llamadas.
@@ -460,4 +460,4 @@ Para probar en Swagger:
 ## 12. Autores
 
 - Mateo Paez — Seguridad, JWT, Redis, rate limiting, despliegue
-- John Tigre — Dominio, transacciones, reportes, estadísticas
+- John Tigre — Módulos de categorías, eventos y sesiones: entidades, CRUD con filtros y paginación, validadores de modalidad y fechas, y validación de propiedad
